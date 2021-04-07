@@ -10,12 +10,19 @@ import audio_preprocessing as ap
 import tensorflow as tf
 import pandas as pd
 
+if len(sys.argv)<=3:
+    print("Usage: active_learning.py <music_directory> <training_data_file>")
+    print("<music_directory>: root directory that contains mp3 files.")
+    print("<training_data_file>: name of the file that contains the labelled examples. "+ \
+            "If the file does not exists, one will be created with a few examples to be labelled.")
+    sys.exit()
 
 seed = 133742
 random.seed(seed)
 
 # TODO save model and use it
 # TODO small script to generate a .mp3 list of unlabelled music
+
 
 music_dir = pathlib.Path(sys.argv[1])
 train_file = pathlib.Path(sys.argv[2])

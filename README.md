@@ -12,7 +12,7 @@ If `training_examples.txt` is an empty file, the script will sample 20 music fro
 
 For example, if we want the model to detect metal music, then we should label any metal music with `1` and the rest with `0`.
 
-Running the script afterwards will print some predictions with increasing order of reliability. These will be appended to `training_examples` to be labelled.
+Running the script afterwards will print some predictions with increasing order of reliability. These will be appended to `training_examples.txt` to be labelled.
 
 Rinse and repeat.
 
