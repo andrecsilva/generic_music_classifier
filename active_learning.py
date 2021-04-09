@@ -10,7 +10,8 @@ import audio_preprocessing as ap
 import tensorflow as tf
 import pandas as pd
 
-if len(sys.argv)<=3:
+
+if len(sys.argv)<3:
     print("Usage: active_learning.py <music_directory> <training_data_file>")
     print("<music_directory>: root directory that contains mp3 files.")
     print("<training_data_file>: name of the file that contains the labelled examples. "+ \
@@ -26,8 +27,6 @@ random.seed(seed)
 
 music_dir = pathlib.Path(sys.argv[1])
 train_file = pathlib.Path(sys.argv[2])
-# music_dir = pathlib.Path('/media/Data/Mp3')
-# train_file = pathlib.Path('calm.txt')
 pickle_file = pathlib.Path(train_file.parent / (train_file.stem + ".pkl"))
 
 # Checks if there's training data. If not, sample a small subset of music for labelling
@@ -217,5 +216,12 @@ def append_predicitions(predictions):
         for p in predictions:
             f.write(f"{p[0]}\n")
 
+def generate_playlist(predictions):
+    playlist_file = pathlib.Path(train_file.parent / (train_file.stem + "_playlist.m3u"))
+    with open(playlist_file,"w") as f:
+        for p in predictions:
+            f.write(f"{p[0]}\n")
+
 
 append_predicitions(pred)
+generate_playlist(pred)
