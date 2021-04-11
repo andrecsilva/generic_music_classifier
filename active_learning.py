@@ -158,7 +158,7 @@ def save_model(model):
 #    plt.legend()
 #    plt.show()
 
-def predict(model,to_predict,batch_size):
+def predict(model,to_predict,batch_size=5):
     files_test_ds = tf.data.Dataset.from_tensor_slices(to_predict)
     test_ds = files_test_ds.map(
         lambda x: tf.expand_dims(tf.convert_to_tensor(ap.preprocess(x)), axis=-1)
@@ -170,10 +170,9 @@ def predict(model,to_predict,batch_size):
     # calculate predictions
     test_pred = model.predict(test_ds, verbose=1)
 
-    # order predictions by confusion
     pred = reduce(lambda x, y: x + y, test_pred.tolist())
     pred = list(zip(to_predict, pred))
-    pred = sorted(pred, key=lambda x: abs(x[1]))
+
     return pred
 
 # grab the half of the most confusing examples to be labelled
@@ -182,67 +181,72 @@ def append_predicitions(predictions):
         for p in predictions:
             f.write(f"{p[0]}\n")
 
-def generate_playlist(predictions):
-    playlist_file = pathlib.Path(train_file.parent / (train_file.stem + "_to_evaluate.m3u"))
+def generate_playlist(path,music):
+    playlist_file = pathlib.Path(path)
     with open(playlist_file,"w") as f:
-        for p in predictions:
-            f.write(f"{p[0]}\n")
+        for m in music:
+            f.write(f"{m}\n")
 
-batch_size = 5
-seed = 133742
-random.seed(seed)
+if __name__ == '__main__':
+    batch_size = 5
+    seed = 133742
+    random.seed(seed)
 
-if len(sys.argv)<3:
-    print("Usage: active_learning.py <music_directory> <training_data_file>")
-    print("<music_directory>: root directory that contains mp3 files.")
-    print("<training_data_file>: name of the file that contains the labelled examples. "+ \
-            "If the file does not exists, one will be created with a few examples to be labelled.")
-    sys.exit()
+    if len(sys.argv)<3:
+        print("Usage: active_learning.py <music_directory> <training_data_file>")
+        print("<music_directory>: root directory that contains mp3 files.")
+        print("<training_data_file>: name of the file that contains the labelled examples. "+ \
+                "If the file does not exists, one will be created with a few examples to be labelled.")
+        sys.exit()
 
-music_dir = pathlib.Path(sys.argv[1])
-train_file = pathlib.Path(sys.argv[2])
+    music_dir = pathlib.Path(sys.argv[1])
+    train_file = pathlib.Path(sys.argv[2])
 
-# Checks if there's training data. If not, sample a small subset of music for labelling
-if not train_file.exists():
-    all_music = set(music_dir.glob("**/*.mp3"))
-    sample = random.sample(all_music, 20)
-    sample = set(sample)
+    # Checks if there's training data. If not, sample a small subset of music for labelling
+    if not train_file.exists():
+        all_music = set(music_dir.glob("**/*.mp3"))
+        sample = random.sample(all_music, 20)
+        sample = set(sample)
 
-    train_file.touch(exist_ok=True)
-    with open(train_file, "w") as f:
-        for s in sample:
-            f.write(f"{str(s)}\n")
+        train_file.touch(exist_ok=True)
+        with open(train_file, "w") as f:
+            for s in sample:
+                f.write(f"{str(s)}\n")
 
-    print(f"Please label the music in {str(train_file)}, and execute this script again")
-    sys.exit()
+        print(f"Please label the music in {str(train_file)}, and execute this script again")
+        sys.exit()
 
 
-train_data = balance_data(convert_to_tensor(preprocess_training_data(train_file)))
-# shuffle
-train_data = train_data.sample(frac=1)
+    train_data = balance_data(convert_to_tensor(preprocess_training_data(train_file)))
+    # shuffle
+    train_data = train_data.sample(frac=1)
 
-train_ds,val_ds = split_into_datasets(train_data,batch_size)
-model = get_model(train_ds)
+    train_ds,val_ds = split_into_datasets(train_data,batch_size)
+    model = get_model(train_ds)
 
-num_epochs = 10
-history = model.fit(train_ds, validation_data=val_ds, epochs=num_epochs)
+    num_epochs = 10
+    history = model.fit(train_ds, validation_data=val_ds, epochs=num_epochs)
 
-print(history.history)
+    print(history.history)
 
-# get all music available at the library and remove the ones in the training data
-# all_music = set(music_dir.glob('**/*.mp3')).union(set(music_dir.glob('**/*.flac')))
-train_music = pd.read_csv(train_file, names=["music", "label"], sep="\t")
-all_music = set(music_dir.glob("**/*.mp3")).difference(
-    set(map(pathlib.Path, train_music.music))
-)
+    # get all music available at the library and remove the ones in the training data
+    # all_music = set(music_dir.glob('**/*.mp3')).union(set(music_dir.glob('**/*.flac')))
+    train_music = pd.read_csv(train_file, names=["music", "label"], sep="\t")
+    all_music = set(music_dir.glob("**/*.mp3")).difference(
+        set(map(pathlib.Path, train_music.music))
+    )
 
-# sample music for testing 
-sample_test = [str(p) for p in random.sample(all_music, 20)]
-pred = predict(model,sample_test,batch_size)
+    # sample music for testing 
+    sample_test = [str(p) for p in random.sample(all_music, 20)]
+    pred = predict(model,sample_test,batch_size)
 
-for p in pred:
-    print(p)
+    # order predictions by confusion
+    pred = sorted(pred, key=lambda x: abs(x[1]))
 
-append_predicitions(pred)
-generate_playlist(pred)
-save_model(model)
+    for p in pred:
+        print(p)
+
+    append_predicitions(pred)
+
+    playlist_file = pathlib.Path(train_file.parent / (train_file.stem + "_to_evaluate.m3u"))
+    generate_playlist(playlist_file,[x for x,y in pred])
