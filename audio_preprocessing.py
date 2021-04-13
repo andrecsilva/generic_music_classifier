@@ -25,11 +25,22 @@ def multi_channel_to_mono(tensor):
     tensor = tf.math.divide(tensor,nchannels)
     return tensor
 
+import sys
 #truncate/pad the tensor to a size of max_samples
+@tf.function
 def resize(tensor):
-    tensor = tensor[:max_samples]
-    pad = tf.zeros([max_samples] - tf.shape(tensor),dtype=tf.float32)
-    return tf.concat([tensor,pad],axis=0)
+    #tf.print(tf.shape(tensor),output_stream=sys.stdout)
+
+    #the music is looped as much as possible
+    nsamples = tf.shape(tensor)[0]
+    #repeated = ([tensor] * (max_samples // nsamples)) + [tensor[:max_samples % nsamples]]
+    div = max_samples // nsamples
+    rmd = max_samples % nsamples
+
+    repeated = tf.repeat(tensor,div,axis=0)
+    repeated = tf.concat([repeated,tensor[:rmd]],axis=0)
+    
+    return repeated
 
 #returns a waveform tensor with size max_samples from a music file
 #@tf.function

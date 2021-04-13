@@ -164,7 +164,7 @@ def predict(model,to_predict,batch_size=5):
         lambda x: tf.expand_dims(tf.convert_to_tensor(ap.preprocess(x)), axis=-1)
     )
     test_ds = test_ds.apply(tf.data.experimental.ignore_errors())
-    test_ds = test_ds.batch(batch_size)
+    test_ds = test_ds.batch(batch_size,drop_remainder=True)
     test_ds = test_ds.cache().prefetch(tf.data.AUTOTUNE)
 
     # calculate predictions
