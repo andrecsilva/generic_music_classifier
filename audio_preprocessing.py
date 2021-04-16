@@ -11,12 +11,12 @@ std_rate = 44100 //4
 #pad/trucate to 5 mins of music at most
 max_samples = std_rate * 2 * 60
 
-#@tf.function
+@tf.function(input_signature=(tf.TensorSpec(shape=[None], dtype=tf.float32),))
 def decode_audio(file_path):
     audio_tensor = tfio.audio.AudioIOTensor(file_path)
     return audio_tensor.to_tensor()
 
-#@tf.function
+@tf.function(input_signature=(tf.TensorSpec(shape=[None,2], dtype=tf.float32),))
 def multi_channel_to_mono(tensor):
     #nchannels = tf.cast(tensor.shape[1],dtype=tf.float32)
     #nchannels = tf.constant(tensor.shape[1])
@@ -25,9 +25,9 @@ def multi_channel_to_mono(tensor):
     tensor = tf.math.divide(tensor,nchannels)
     return tensor
 
-import sys
+#import sys
 #truncate/pad the tensor to a size of max_samples
-@tf.function
+@tf.function(input_signature=(tf.TensorSpec(shape=[None], dtype=tf.float32),))
 def resize(tensor):
     #tf.print(tf.shape(tensor),output_stream=sys.stdout)
 
@@ -43,7 +43,7 @@ def resize(tensor):
     return repeated
 
 #returns a waveform tensor with size max_samples from a music file
-#@tf.function
+@tf.function(input_signature=(tf.TensorSpec(shape=[], dtype=tf.string),))
 def preprocess(file_path):
     #tf.print(file_path,output_stream=sys.stdout)
     #decodification
