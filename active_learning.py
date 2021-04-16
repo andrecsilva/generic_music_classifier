@@ -5,48 +5,52 @@ from functools import reduce
 import random
 import sys
 
+import hashlib
+import shelve
+
 import audio_preprocessing as ap
 
 import tensorflow as tf
 import pandas as pd
+
 
 def clean_data(files_data):
     files_data.dropna(axis=0,inplace=True)
     files_data = files_data[(files_data.lable==0 | files_data.label==1)]
     return files_data
 
+def get_key(file_path):
+    with open(file_path,'rb') as f:
+        return hashlib.sha1(f.read()).hexdigest()
+
+def preprocess_or_retrieve(file_path,db):
+    key = get_key(file_path)
+    if key in db:
+        return db[key]
+    data = ap.preprocess(file_path)
+    db[key] = data
+    return data
+
 # preprocess the latest labeled examples and append to the pickle file
-def preprocess_training_data(train_file):
+def preprocess_training_data(train_file,db):
     """Returns a pandas dataframe containing the a mfcc spectrogram of the files"""
     print("Preprocessing training data...")
-    pickle_file = pathlib.Path(train_file.parent / (train_file.stem + ".pkl"))
-
-    #checks how man files we need to preprocess
-    start = 0
-    mfcc_data = pd.DataFrame(columns=["music", "label"])
-    if pickle_file.exists():
-        mfcc_data = pd.read_pickle(pickle_file)
-        start = mfcc_data.shape[0]
 
     #TODO clean data here...
     files_data = pd.read_csv(train_file, names=["music", "label"], sep="\t")
 
-    # look at difference in the number of rows between the pkl and txt files
-    newest_data = files_data[start:].music.map(lambda x: ap.preprocess(x).numpy())
-    newest_data = pd.DataFrame(newest_data).join(files_data.label[start:])
+    mfcc_data = files_data.music.map(lambda x : tf.expand_dims(preprocess_or_retrieve(x,db),axis=-1))
+    mfcc_data = pd.DataFrame(mfcc_data).join(files_data.label)
 
-    mfcc_data = mfcc_data.append(newest_data)
-    mfcc_data.to_pickle(pickle_file)
     return mfcc_data
 
-
-def convert_to_tensor(mfcc_data):
-    """Convert the dataset of mfcc numpy arrays and convert it to a tensor dataset."""
-    #convert to numpy arrays in mfcc_data to tensors
-    mfcc_data = preprocess_training_data(train_file)
-    data = mfcc_data.music.map(lambda x: tf.expand_dims(tf.convert_to_tensor(x), -1))
-    data = pd.DataFrame(data).join(mfcc_data.label)
-    return data
+#def convert_to_tensor(mfcc_data):
+#    """Convert the dataset of mfcc numpy arrays and convert it to a tensor dataset."""
+#    #convert to numpy arrays in mfcc_data to tensors
+#    mfcc_data = preprocess_training_data(train_file)
+#    data = mfcc_data.music.map(lambda x: tf.expand_dims(tf.convert_to_tensor(x), -1))
+#    data = pd.DataFrame(data).join(mfcc_data.label)
+#    return data
 
 def balance_data(data):
     """Makes the distributions of the classes as fair as possible."""
@@ -202,6 +206,8 @@ if __name__ == '__main__':
     music_dir = pathlib.Path(sys.argv[1])
     train_file = pathlib.Path(sys.argv[2])
 
+    db = shelve.open('preprocessed_data.db')
+
     # Checks if there's training data. If not, sample a small subset of music for labelling
     if not train_file.exists():
         all_music = set(music_dir.glob("**/*.mp3"))
@@ -217,7 +223,7 @@ if __name__ == '__main__':
         sys.exit()
 
 
-    train_data = balance_data(convert_to_tensor(preprocess_training_data(train_file)))
+    train_data = balance_data(preprocess_training_data(train_file,db))
     # shuffle
     train_data = train_data.sample(frac=1)
 
