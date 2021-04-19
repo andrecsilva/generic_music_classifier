@@ -57,8 +57,8 @@ def preprocess(file_path):
     tensor = multi_channel_to_mono(tensor)
 
     #trim noise and resize
-    p = tfio.experimental.audio.trim(tensor,axis=0,epsilon=0.1)
-    tensor = tensor[p[0]:p[1]]
+    #p = tfio.experimental.audio.trim(tensor,axis=0,epsilon=0.1)
+    #tensor = tensor[p[0]:p[1]]
     tensor = resize(tensor)
 
     tensor = tf.numpy_function(get_mfcc,[tensor],tf.float32)

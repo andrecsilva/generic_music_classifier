@@ -2,6 +2,7 @@
 """ An active learning python script to classify your music library into moods"""
 import pathlib
 from functools import reduce
+from itertools import compress
 import random
 import sys
 
@@ -27,7 +28,7 @@ def preprocess_or_retrieve(file_path,db):
     key = get_key(file_path)
     if key in db:
         return db[key]
-    data = ap.preprocess(file_path)
+    data = ap.preprocess(tf.constant(file_path))
     db[key] = data
     return data
 
@@ -162,20 +163,39 @@ def save_model(model):
 #    plt.legend()
 #    plt.show()
 
-def predict(model,to_predict,batch_size=5):
-    files_test_ds = tf.data.Dataset.from_tensor_slices(to_predict)
-    test_ds = files_test_ds.map(
-        lambda x: tf.expand_dims(tf.convert_to_tensor(ap.preprocess(x)), axis=-1)
-    )
+def predict(model,to_predict,db,batch_size=5):
+    #files_test_ds = tf.data.Dataset.from_tensor_slices(to_predict)
+    #test_ds = files_test_ds.map( \
+    #    lambda x: tf.expand_dims(preprocess_or_retrieve(x.numpy(),db), axis=-1)\
+    #)
+    #test_ds = tf.data.Dataset.from_tensor_slices([preprocess_or_retrieve(m,db) for m in to_predict])
+    #test_ds = tf.data.Dataset.from_tensor_slices([print_first(m,db) for m in to_predict])
+
+    #TODO: change this to a pure tensorflow dataflow
+    mask = []
+    def generator():
+        for m in to_predict:
+            print(m)
+            try:
+                yield tf.expand_dims(preprocess_or_retrieve(m,db),axis=-1)
+                mask.append(True)
+            except:
+                print('Error')
+                mask.append(False)
+
+    test_ds = tf.data.Dataset.from_generator(generator,output_signature=\
+            tf.TensorSpec(shape=[None,None,1],dtype=tf.float32))
+
     test_ds = test_ds.apply(tf.data.experimental.ignore_errors())
     test_ds = test_ds.batch(batch_size,drop_remainder=True)
     test_ds = test_ds.cache().prefetch(tf.data.AUTOTUNE)
 
     # calculate predictions
+    print(f'Number of music to predict: {len(to_predict)}')
     test_pred = model.predict(test_ds, verbose=1)
 
     pred = reduce(lambda x, y: x + y, test_pred.tolist())
-    pred = list(zip(to_predict, pred))
+    pred = list(zip(compress(to_predict,mask), pred))
 
     return pred
 
@@ -222,7 +242,6 @@ if __name__ == '__main__':
         print(f"Please label the music in {str(train_file)}, and execute this script again")
         sys.exit()
 
-
     train_data = balance_data(preprocess_training_data(train_file,db))
     # shuffle
     train_data = train_data.sample(frac=1)
@@ -244,7 +263,7 @@ if __name__ == '__main__':
 
     # sample music for testing 
     sample_test = [str(p) for p in random.sample(all_music, 20)]
-    pred = predict(model,sample_test,batch_size)
+    pred = predict(model,sample_test,db,batch_size)
 
     # order predictions by confusion
     pred = sorted(pred, key=lambda x: abs(x[1]))

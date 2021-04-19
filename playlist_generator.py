@@ -3,6 +3,8 @@
 import sys
 import tensorflow as tf
 import pathlib
+import shelve
+
 from functools import reduce
 
 from active_learning import predict,generate_playlist
@@ -14,9 +16,9 @@ if len(sys.argv)<3:
     print("[directory|folder]: any sequence of mp3 files and folders to be analysed.")
     sys.exit()
 
-cutoff = 0.4
-
 playlist_file, model_path, *music = sys.argv[1:]
+
+cutoff = 0.5
 
 #grab all files in the directories 
 music = [pathlib.Path(x) for x in music]
@@ -25,7 +27,8 @@ music = [m for l in map(lambda x : list(x.glob('**/*.mp3')) if x.is_dir() else [
 model = tf.keras.models.load_model(model_path)
 
 #predict the scores
-pred = predict(model,[str(p) for p in music])
+db = shelve.open('preprocessed_data.db')
+pred = predict(model,[str(p) for p in music],db)
 #pred = sorted(pred,key=lambda x: x[1],reverse=True)
 
 #generate playlist
