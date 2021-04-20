@@ -39,7 +39,7 @@ def resize(tensor):
 
     repeated = tf.repeat(tensor,div,axis=0)
     repeated = tf.concat([repeated,tensor[:rmd]],axis=0)
-    
+
     return repeated
 
 #returns a waveform tensor with size max_samples from a music file
@@ -48,7 +48,7 @@ def preprocess(file_path):
     #tf.print(file_path,output_stream=sys.stdout)
     #decodification
     tensor = tfio.audio.AudioIOTensor(file_path,dtype=tf.float32)
-    
+
     #resampling
     rate = tf.cast(tensor.rate,dtype=tf.int64)
     tensor = tfio.audio.resample(tensor.to_tensor(),rate,std_rate)
@@ -67,12 +67,12 @@ def preprocess(file_path):
     return tensor
 
 def get_melspectogram(waveform):
-    spectrogram = librosa.feature.melspectrogram(waveform,sr = std_rate,n_fft=2048,hop_length=1024);
+    spectrogram = librosa.feature.melspectrogram(waveform,sr = std_rate,n_fft=2048,hop_length=1024)
     spectrogram = librosa.amplitude_to_db(spectrogram,ref=np.min)
     return np.abs(spectrogram)
 
 def get_mfcc(waveform):
-    mfcc = librosa.feature.mfcc(waveform,std_rate,n_mfcc=20,n_fft=2048,hop_length=1024);
+    mfcc = librosa.feature.mfcc(waveform,std_rate,n_mfcc=20,n_fft=2048,hop_length=1024)
     return mfcc
 
 #The functions below are painfully slow for mp3 files due to librosa.load
@@ -80,11 +80,11 @@ def get_mfcc(waveform):
 #decodes, resample and converts to monochannel all at the same time
 def librosa_decode_audio(file_path):
     return librosa.load(file_path,mono=True,sr=std_rate)[0]
-    
+
 #truncate/pad the tensor to a size of max_samples
 def librosa_resize(tensor):
     tensor = tensor[:max_samples]
-    pad = np.zeros(max(0,max_samples - t.shape[0]),dtype=np.float32)
+    pad = np.zeros(max(0,max_samples - tensor.shape[0]),dtype=np.float32)
     return np.concatenate([tensor,pad],axis=0)
 
 #returns a waveform tensor with size max_samples from a music file
@@ -92,4 +92,3 @@ def librosa_preprocess(file_path):
     tensor = librosa_decode_audio(file_path)
     tensor = librosa_resize(tensor)
     return tensor
-

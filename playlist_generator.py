@@ -9,39 +9,41 @@ from functools import reduce
 
 from active_learning import predict,generate_playlist
 
-if len(sys.argv)<3:
-    print("Usage: playlist_generator.py <playlist_file> <model_folder> [directory | file]+")
-    print("<playlist_file>: the name of the playlist file to be generated. ")
-    print("<model_folder>: the folder containing the saved model to be used.")
-    print("[directory|folder]: any sequence of mp3 files and folders to be analysed.")
-    sys.exit()
+if __name__ == '__main__':
 
-playlist_file, model_path, *music = sys.argv[1:]
+    if len(sys.argv)<3:
+        print("Usage: playlist_generator.py <playlist_file> <model_folder> [directory | file]+")
+        print("<playlist_file>: the name of the playlist file to be generated. ")
+        print("<model_folder>: the folder containing the saved model to be used.")
+        print("[directory|folder]+: any sequence of mp3 files and folders to be analysed.")
+        sys.exit()
 
-cutoff = 0.5
+    playlist_file, model_path, *music = sys.argv[1:]
 
-#grab all files in the directories 
-music = [pathlib.Path(x) for x in music]
-music = [m for l in map(lambda x : list(x.glob('**/*.mp3')) if x.is_dir() else [x],music) for m in l]
+    cutoff = 0.5
 
-model = tf.keras.models.load_model(model_path)
+    #grab all files in the directories 
+    music = [pathlib.Path(x) for x in music]
+    music = [m for l in map(lambda x : list(x.glob('**/*.mp3')) if x.is_dir() else [x],music) for m in l]
 
-#predict the scores
-db = shelve.open('preprocessed_data.db')
-pred = predict(model,[str(p) for p in music],db)
-#pred = sorted(pred,key=lambda x: x[1],reverse=True)
+    model = tf.keras.models.load_model(model_path)
 
-#generate playlist
-playlist_file = pathlib.Path(playlist_file)
-generate_playlist(playlist_file,[x for x,y in pred if y>=cutoff])
-print(f'playlist generated at {playlist_file.absolute()}')
+    #predict the scores
+    db = shelve.open('preprocessed_data.db')
+    pred = predict(model,[str(p) for p in music],db)
+    #pred = sorted(pred,key=lambda x: x[1],reverse=True)
 
-#statistics about the rejected files
-rejected = [(x,y) for x,y in pred if y<cutoff];
-rejected = sorted(rejected,key=lambda x:x[1])
+    #generate playlist
+    playlist_file = pathlib.Path(playlist_file)
+    generate_playlist(playlist_file,[x for x,y in pred if y>=cutoff])
+    print(f'playlist generated at {playlist_file.absolute()}')
 
-print(f'The following were rejected dues to low score (<{cutoff}):')
-for p in rejected:
-    print(p)
+    #statistics about the rejected files
+    rejected = [(x,y) for x,y in pred if y<cutoff];
+    rejected = sorted(rejected,key=lambda x:x[1])
 
-print(f'Rejected {len(rejected)} out of {len(music)}.')
+    print(f'The following were rejected dues to low score (<{cutoff}):')
+    for p in rejected:
+        print(p)
+
+    print(f'Rejected {len(rejected)} out of {len(music)}.')

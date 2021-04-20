@@ -9,10 +9,11 @@ import sys
 import hashlib
 import shelve
 
-import audio_preprocessing as ap
-
 import tensorflow as tf
 import pandas as pd
+
+import audio_preprocessing as ap
+
 
 
 def clean_data(files_data):
@@ -40,7 +41,8 @@ def preprocess_training_data(train_file,db):
     #TODO clean data here...
     files_data = pd.read_csv(train_file, names=["music", "label"], sep="\t")
 
-    mfcc_data = files_data.music.map(lambda x : tf.expand_dims(preprocess_or_retrieve(x,db),axis=-1))
+    mfcc_data = files_data.music.map(lambda x : \
+            tf.expand_dims(preprocess_or_retrieve(x,db),axis=-1))
     mfcc_data = pd.DataFrame(mfcc_data).join(files_data.label)
 
     return mfcc_data
@@ -72,7 +74,7 @@ def split_into_datasets(train_data,batch_size):
 
     # 80/20 split into train and validation databases
     train_size = 4 * train_data.shape[0] // 5
-    val_size = train_data.shape[0] - train_size
+    #val_size = train_data.shape[0] - train_size
     # steps_per_epoch= train_size // batch_size
     # validation_steps= val_size // batch_size
 
@@ -85,7 +87,7 @@ def split_into_datasets(train_data,batch_size):
 
     train_ds = train_ds.apply(tf.data.experimental.ignore_errors())
     train_ds = train_ds.batch(batch_size)
-    tin_ds = train_ds.cache().prefetch(tf.data.AUTOTUNE)
+    train_ds = train_ds.cache().prefetch(tf.data.AUTOTUNE)
 
     val_ds = val_ds.apply(tf.data.experimental.ignore_errors())
     val_ds = val_ds.batch(batch_size)
@@ -151,10 +153,10 @@ def get_model(train_ds):
     )
     return model
 
-def save_model(model):
+def save_model(model,train_file):
     model.path = pathlib.Path(train_file.parent / (train_file.stem + "_model"))
     if not model.path.exists():
-           model.path.mkdir() 
+        model.path.mkdir() 
     model.save(model.path)
 
 #def plot():
@@ -168,7 +170,8 @@ def predict(model,to_predict,db,batch_size=5):
     #test_ds = files_test_ds.map( \
     #    lambda x: tf.expand_dims(preprocess_or_retrieve(x.numpy(),db), axis=-1)\
     #)
-    #test_ds = tf.data.Dataset.from_tensor_slices([preprocess_or_retrieve(m,db) for m in to_predict])
+    #test_ds = tf.data.Dataset.from_tensor_slices(\
+    #       [preprocess_or_retrieve(m,db) for m in to_predict])
     #test_ds = tf.data.Dataset.from_tensor_slices([print_first(m,db) for m in to_predict])
 
     #TODO: change this to a pure tensorflow dataflow
@@ -220,7 +223,8 @@ if __name__ == '__main__':
         print("Usage: active_learning.py <music_directory> <training_data_file>")
         print("<music_directory>: root directory that contains mp3 files.")
         print("<training_data_file>: name of the file that contains the labelled examples. "+ \
-                "If the file does not exists, one will be created with a few examples to be labelled.")
+                "If the file does not exists, one will be created with a" + \
+                "few examples to be labelled.")
         sys.exit()
 
     music_dir = pathlib.Path(sys.argv[1])
@@ -261,7 +265,7 @@ if __name__ == '__main__':
         set(map(pathlib.Path, train_music.music))
     )
 
-    # sample music for testing 
+    # sample music for testing
     sample_test = [str(p) for p in random.sample(all_music, 20)]
     pred = predict(model,sample_test,db,batch_size)
 
@@ -275,3 +279,4 @@ if __name__ == '__main__':
 
     playlist_file = pathlib.Path(train_file.parent / (train_file.stem + "_to_evaluate.m3u"))
     generate_playlist(playlist_file,[x for x,y in pred])
+    save_model(model,train_file)
