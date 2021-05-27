@@ -18,7 +18,7 @@ import audio_preprocessing as ap
 
 def clean_data(files_data):
     files_data.dropna(axis=0,inplace=True)
-    files_data = files_data[(files_data.lable==0 | files_data.label==1)]
+    files_data = files_data[(files_data.label==0 | files_data.label==1)]
     return files_data
 
 def get_key(file_path):
@@ -149,7 +149,7 @@ def get_model(train_ds):
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-        metrics=tf.metrics.BinaryAccuracy(threshold=0.0),
+        metrics=tf.metrics.BinaryAccuracy(threshold=0.0)
     )
     return model
 
